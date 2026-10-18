@@ -1,0 +1,9 @@
+# Only requirements.txt and tenant_operator/ belong in the image
+tests/
+**/__pycache__/
+**/*.pyc
+.pytest_cache/
+.ruff_cache/
+report.xml
+requirements-dev.txt
+pyproject.toml

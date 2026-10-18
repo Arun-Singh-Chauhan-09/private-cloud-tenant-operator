@@ -1,0 +1,9 @@
+# Accepted findings. Each one needs a reason.
+
+# KSV050: ClusterRole can manage RBAC resources (RoleBindings).
+# KSV056: ClusterRole can manage networking resources (NetworkPolicies).
+# Creating a RoleBinding and NetworkPolicies per tenant is the operator's purpose.
+# Mitigation: deploy/admission-policy.yaml limits the operator to namespaces it created
+# and to binding only the built-in "edit" ClusterRole.
+KSV050
+KSV056

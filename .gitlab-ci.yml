@@ -1,0 +1,93 @@
+stages:
+  - lint
+  - test
+  - build
+  - e2e
+
+variables:
+  IMAGE: $CI_REGISTRY_IMAGE/tenant-operator
+
+default:
+  interruptible: true
+
+python-lint:
+  stage: lint
+  image: python:3.12-slim
+  script:
+    - pip install --quiet ruff==0.7.4
+    - ruff check operator/
+    - ruff format --check operator/
+
+puppet-lint:
+  stage: lint
+  image: ruby:3.3-slim
+  script:
+    - gem install --no-document puppet:8.10.0 puppet-lint
+    - puppet parser validate puppet/modules/k8s_node/manifests/*.pp puppet/examples/site.pp
+    - puppet epp validate puppet/modules/k8s_node/templates/*.epp
+    - puppet-lint --fail-on-warnings --no-documentation-check puppet/modules
+
+security-scan:
+  stage: lint
+  image:
+    name: aquasec/trivy:0.57.1
+    entrypoint: [""]
+  script:
+    # Known vulnerabilities in pinned Python dependencies
+    - trivy fs --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 operator/
+    # Misconfigurations in the Dockerfile and Kubernetes manifests (accepted findings in .trivyignore)
+    - trivy config --severity HIGH,CRITICAL --exit-code 1 .
+
+manifests:
+  stage: lint
+  image:
+    name: ghcr.io/yannh/kubeconform:v0.6.7-alpine
+    entrypoint: [""]
+  script:
+    # CRD and Prometheus Operator kinds are skipped: they are not in the core schema set.
+    - /kubeconform -strict -summary -ignore-missing-schemas deploy/ examples/
+
+unit-tests:
+  stage: test
+  image: python:3.12-slim
+  script:
+    - pip install --quiet -r operator/requirements-dev.txt
+    - cd operator && python -m pytest -q --junitxml=report.xml
+  artifacts:
+    when: always
+    reports:
+      junit: operator/report.xml
+
+build-image:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
+  script:
+    - /kaniko/executor
+      --context operator/
+      --dockerfile operator/Dockerfile
+      --destination "$IMAGE:$CI_COMMIT_SHORT_SHA"
+      $( [ "$CI_COMMIT_BRANCH" = "$CI_DEFAULT_BRANCH" ] && echo --destination "$IMAGE:latest" )
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+kind-e2e:
+  stage: e2e
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_HOST: tcp://docker:2375
+  before_script:
+    - apk add --no-cache bash curl
+    - curl -fsSLo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.24.0/kind-linux-amd64
+    - curl -fsSLo /usr/local/bin/kubectl https://dl.k8s.io/release/v1.31.2/bin/linux/amd64/kubectl
+    - chmod +x /usr/local/bin/kind /usr/local/bin/kubectl
+  script:
+    - bash hack/e2e.sh
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

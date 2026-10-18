@@ -1,0 +1,14 @@
+apiVersion: platform.example.io/v1alpha1
+kind: Tenant
+metadata:
+  name: team-ml
+spec:
+  ownersGroup: team-ml-devs
+  quota:
+    cpu: "32"
+    memory: 128Gi
+    gpus: 4
+  storage:
+    - storageClass: standard
+      requests: 1Ti
+      maxClaims: 10

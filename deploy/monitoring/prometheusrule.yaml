@@ -1,0 +1,40 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: tenant-operator
+  namespace: tenant-operator
+spec:
+  groups:
+    - name: tenant-operator
+      rules:
+        - alert: TenantOperatorDown
+          expr: absent(up{job="tenant-operator-metrics"} == 1)
+          for: 5m
+          labels:
+            severity: page
+          annotations:
+            summary: Tenant operator is not being scraped
+            runbook: docs/runbook.md#tenantoperatordown
+        - alert: TenantReconcileErrors
+          expr: sum(rate(tenant_operator_reconciles_total{result="api_error"}[10m])) > 0
+          for: 15m
+          labels:
+            severity: ticket
+          annotations:
+            summary: Tenant reconciles are failing against the API server
+            runbook: docs/runbook.md#tenantreconcileerrors
+        - alert: TenantInvalidSpec
+          expr: increase(tenant_operator_reconciles_total{result="invalid_spec"}[30m]) > 0
+          labels:
+            severity: info
+          annotations:
+            summary: A Tenant was submitted with an invalid spec
+            runbook: docs/runbook.md#tenantinvalidspec
+        - alert: TenantReconcileSlow
+          expr: histogram_quantile(0.95, sum(rate(tenant_operator_reconcile_duration_seconds_bucket[15m])) by (le)) > 5
+          for: 15m
+          labels:
+            severity: ticket
+          annotations:
+            summary: p95 tenant reconcile time above 5s
+            runbook: docs/runbook.md#tenantreconcileslow

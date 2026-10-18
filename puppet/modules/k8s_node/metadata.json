@@ -1,0 +1,16 @@
+{
+  "name": "arunsingh-k8s_node",
+  "version": "0.1.0",
+  "author": "Arun Singh Chauhan",
+  "summary": "Prepares bare-metal Debian/Ubuntu hosts to join a Kubernetes cluster (kernel, swap, containerd, kubelet).",
+  "license": "MIT",
+  "source": "https://github.com/Arun-Singh-Chauhan-09/private-cloud-tenant-operator",
+  "dependencies": [],
+  "operatingsystem_support": [
+    { "operatingsystem": "Ubuntu", "operatingsystemrelease": ["22.04", "24.04"] },
+    { "operatingsystem": "Debian", "operatingsystemrelease": ["12"] }
+  ],
+  "requirements": [
+    { "name": "puppet", "version_requirement": ">= 7.0.0 < 9.0.0" }
+  ]
+}

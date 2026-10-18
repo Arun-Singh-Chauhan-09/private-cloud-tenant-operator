@@ -1,0 +1,15 @@
+apiVersion: platform.example.io/v1alpha1
+kind: Tenant
+metadata:
+  name: team-mail
+spec:
+  ownersGroup: team-mail-devs
+  quota:
+    cpu: "16"
+    memory: 64Gi
+  storage:
+    - storageClass: standard
+      requests: 200Gi
+      maxClaims: 20
+  mesh:
+    enabled: true

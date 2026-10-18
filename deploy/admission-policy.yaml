@@ -1,0 +1,54 @@
+# The operator's ClusterRole has to be cluster-wide (it creates namespaces it cannot know in advance).
+# This policy narrows what that identity may actually do, enforced by the API server:
+#   - it may only modify namespaces it created itself
+#   - it may only write quotas, limit ranges, network policies and role bindings into those namespaces
+#   - the only role it may bind is the built-in "edit" ClusterRole
+# A bug or a stolen operator token therefore cannot touch kube-system or grant cluster-admin.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: tenant-operator-scope
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["namespaces", "resourcequotas", "limitranges"]
+      - apiGroups: ["networking.k8s.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["networkpolicies"]
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["rolebindings"]
+  matchConditions:
+    - name: only-the-operator
+      expression: "request.userInfo.username == 'system:serviceaccount:tenant-operator:tenant-operator'"
+  validations:
+    - expression: >-
+        request.kind.kind != 'Namespace' || request.operation == 'CREATE' ||
+        (has(oldObject.metadata.labels) &&
+         'app.kubernetes.io/managed-by' in oldObject.metadata.labels &&
+         oldObject.metadata.labels['app.kubernetes.io/managed-by'] == 'tenant-operator')
+      message: the tenant operator may only modify namespaces it created
+    - expression: >-
+        request.kind.kind == 'Namespace' ||
+        (has(namespaceObject.metadata.labels) &&
+         'app.kubernetes.io/managed-by' in namespaceObject.metadata.labels &&
+         namespaceObject.metadata.labels['app.kubernetes.io/managed-by'] == 'tenant-operator')
+      message: the tenant operator may only write into namespaces it manages
+    - expression: >-
+        request.kind.kind != 'RoleBinding' ||
+        (object.roleRef.kind == 'ClusterRole' && object.roleRef.name == 'edit')
+      message: the tenant operator may only bind the edit ClusterRole
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: tenant-operator-scope
+spec:
+  policyName: tenant-operator-scope
+  validationActions: [Deny]

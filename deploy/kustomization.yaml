@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - crd.yaml
+  - deployment.yaml
+  - rbac.yaml
+  - admission-policy.yaml
+  - networkpolicy.yaml
+# monitoring/ needs the Prometheus Operator CRDs; apply it separately:
+#   kubectl apply -k deploy/monitoring
