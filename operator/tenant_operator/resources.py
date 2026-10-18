@@ -18,7 +18,15 @@ TENANT_LABEL = f"{GROUP}/tenant"
 
 # Never hand these to a tenant: adopting one would let a Tenant delete it via garbage collection.
 RESERVED_NAMESPACES = frozenset(
-    {"default", "kube-system", "kube-public", "kube-node-lease", "tenant-operator", "monitoring", "istio-system"}
+    {
+        "default",
+        "kube-system",
+        "kube-public",
+        "kube-node-lease",
+        "tenant-operator",
+        "monitoring",
+        "istio-system",
+    }
 )
 
 _DNS1123 = re.compile(r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$")
@@ -199,9 +207,7 @@ def network_policies(t: TenantSpec) -> list[dict]:
                     "from": [
                         {
                             "namespaceSelector": {
-                                "matchLabels": {
-                                    "kubernetes.io/metadata.name": t.monitoring_namespace
-                                }
+                                "matchLabels": {"kubernetes.io/metadata.name": t.monitoring_namespace}
                             }
                         }
                     ]
